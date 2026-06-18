@@ -17,8 +17,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const user = await User.create({ name, email, password: hashedPassword });
 
     res.status(201).json({ source: 'database', data: user });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
 
@@ -32,7 +33,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const isMatch = await bcrypt.compare(password, user.password!);
     if (!isMatch) {
       res.status(401).json({ message: 'Invalid credentials' });
@@ -49,7 +49,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = jwt.sign({ id: user._id, role: user.role }, secret, signOptions);
 
     res.json({ source: 'database', data: { user, token } });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };

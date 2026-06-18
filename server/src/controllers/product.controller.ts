@@ -7,7 +7,6 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     
-    // Include page and limit to prevent cache collisions
     const cacheKey = `products:all:page:${page}:limit:${limit}`;
     const cached = await getCached<IProduct[]>(cacheKey);
     
@@ -24,8 +23,9 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     await setCache(cacheKey, products, 300);
 
     res.json({ source: 'database', data: products });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
 
@@ -48,8 +48,9 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 
     await setCache(cacheKey, product, 300);
     res.json({ source: 'database', data: product });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
 
@@ -57,12 +58,12 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   try {
     const product = await Product.create(req.body);
     
-    // Invalidate all paginated product caches
     await invalidateCache('products:all*');
     
     res.status(201).json({ source: 'database', data: product });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
 
@@ -76,12 +77,12 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Invalidate individual product cache and all paginated caches
     await invalidateCache(`products:${id}`, 'products:all*');
 
     res.json({ source: 'database', data: product });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
 
@@ -95,11 +96,11 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Invalidate individual product cache and all paginated caches
     await invalidateCache(`products:${id}`, 'products:all*');
 
     res.json({ source: 'database', message: 'Product deleted successfully' });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };
