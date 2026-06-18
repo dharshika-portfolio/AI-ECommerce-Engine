@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
 import { User } from '../models/User.model';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -39,9 +39,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-    });
+    if (!process.env.JWT_SECRET) {
+      res.status(500).json({ message: 'Server error', error: 'JWT_SECRET not configured' });
+      return;
+    }
+
+    const secret: Secret = process.env.JWT_SECRET;
+    const signOptions: SignOptions = { expiresIn: 604800 }; // 7 days in seconds
+    const token = jwt.sign({ id: user._id, role: user.role }, secret, signOptions);
 
     res.json({ source: 'database', data: { user, token } });
   } catch (error: any) {
