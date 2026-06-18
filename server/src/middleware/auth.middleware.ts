@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: { id: string; role: string };
 }
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -18,9 +18,9 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    req.user = decoded;
+    req.user = decoded as { id: string; role: string };
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ message: 'Not authorized, token failed' });
   }
 };

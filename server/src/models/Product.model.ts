@@ -23,7 +23,7 @@ const productSchema = new mongoose.Schema({
 productSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
-  transform: function (doc, ret: any) {
+  transform: function (doc, ret: Record<string, unknown>) {
     ret.id = ret._id;
     delete ret._id;
   }
