@@ -105,3 +105,63 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ message: 'Server error', error: message });
   }
 };
+
+/**
+ * Semantic search using MongoDB Atlas Vector Search.
+ * Generates an embedding from the user query, runs $vectorSearch,
+ * and returns the top 10 results ranked by cosine similarity.
+ */
+export const searchProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query.q as string;
+
+    if (!query) {
+      res.status(400).json({ message: 'Query parameter "q" is required' });
+      return;
+    }
+
+    // Build cache key from base64-encoded query
+    const cacheKey = `search:${Buffer.from(query).toString('base64')}`;
+    const cached = await getCached<IProduct[]>(cacheKey);
+
+    if (cached) {
+      res.json({ source: 'cache', data: cached });
+      return;
+    }
+
+    // Generate embedding vector from user query
+    const embedding = await generateEmbedding(query);
+
+    // Run $vectorSearch aggregation pipeline
+    const results = await Product.aggregate([
+      {
+        $vectorSearch: {
+          index: 'product_vector_index',
+          path: 'embedding',
+          queryVector: embedding,
+          numCandidates: 100,
+          limit: 10,
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          price: 1,
+          category: 1,
+          stock: 1,
+          score: { $meta: 'vectorSearchScore' },
+          embedding: 0,
+        },
+      },
+    ]);
+
+    // Cache search results with 120s TTL
+    await setCache(cacheKey, results, 120);
+
+    res.json({ source: 'database', data: results });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Server error', error: message });
+  }
+};
