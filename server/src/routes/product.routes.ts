@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getProducts, getProductById, createProduct, updateProduct, deleteProduct } from '../controllers/product.controller';
+import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, searchProducts } from '../controllers/product.controller';
 import { protect } from '../middleware/auth.middleware';
 import { requireAdmin } from '../middleware/rbac.middleware';
 
@@ -7,6 +7,7 @@ const router = Router();
 
 // Public routes
 router.get('/', getProducts);
+router.get('/search', searchProducts);
 router.get('/:id', getProductById);
 
 // Admin-only mutation routes

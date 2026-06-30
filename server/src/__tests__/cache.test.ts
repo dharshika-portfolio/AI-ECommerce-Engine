@@ -11,12 +11,12 @@ dotenv.config();
 beforeAll(async () => {
   await connectDB();
   await redis.flushall();
-});
+}, 30000);
 
 afterAll(async () => {
   await mongoose.connection.close();
   await redis.quit();
-});
+}, 30000);
 
 describe('Product Cache Integration Tests', () => {
   it('should return source: database on first request and cache on second', async () => {
