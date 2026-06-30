@@ -105,7 +105,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
     const order = await Order.create([{
       user: userId,
       items: orderItems,
-      discountCode: appliedDiscount?.code || null,
+      discountCode: appliedDiscount?.code || undefined,
       subtotal,
       discount: discountAmount,
       total,

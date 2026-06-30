@@ -70,9 +70,9 @@ export const calculateCartTotal = async (req: Request, res: Response): Promise<v
     const { subtotal, items: resolvedItems } = aggregationResult[0];
 
     // Check for stock issues
-    const stockErrors = resolvedItems
-      .filter((item: Record<string, any>) => item.stock < item.qty)
-      .map((item: Record<string, any>) => `Product ${item.name} only has ${item.stock} items in stock`);
+    const stockErrors = (resolvedItems as Array<{ stock: number; qty: number; name: string }>)
+      .filter((item) => item.stock < item.qty)
+      .map((item) => `Product ${item.name} only has ${item.stock} items in stock`);
 
     if (stockErrors.length > 0) {
       res.status(400).json({ message: 'Insufficient stock', errors: stockErrors });
