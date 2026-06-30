@@ -1,6 +1,16 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai: OpenAI | null = null;
+
+const getOpenAI = () => {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not defined in the environment variables');
+    }
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+};
 
 /**
  * Generate a 1536-dimension embedding vector for a given text string.
@@ -13,7 +23,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     return Array.from({ length: 1536 }, () => Math.random() * 2 - 1);
   }
 
-  const response = await openai.embeddings.create({
+  const response = await getOpenAI().embeddings.create({
     model: 'text-embedding-3-small',
     input: text,
   });
