@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Product, IProduct } from '../models/Product.model';
 import { getCached, setCache, invalidateCache } from '../services/cache.service';
+import { generateEmbedding } from '../services/vector.service';
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
