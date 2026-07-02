@@ -166,6 +166,7 @@ All project specification documents are in the `/docs` folder:
 
 ---
 
+
 ## ⚠️ Security Notes
 
 - Passwords are hashed with bcrypt (cost factor 12) — never returned in API responses
