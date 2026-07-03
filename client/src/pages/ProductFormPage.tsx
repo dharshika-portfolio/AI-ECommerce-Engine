@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
 import type { Product } from '../types';
+import api from '../api/axiosInstance';
 
 export const ProductFormPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEditing = !!id;
 
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -15,6 +18,39 @@ export const ProductFormPage = () => {
     category: 'Apparel',
     stock: 0,
     isActive: true,
+  });
+  const [error, setError] = useState('');
+
+  const { data: productData, isLoading: isLoadingProduct } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      const response = await api.get(`/products/${id}`);
+      return response.data;
+    },
+    enabled: isEditing,
+  });
+
+  useEffect(() => {
+    if (productData?.data) {
+      setFormData(productData.data);
+    }
+  }, [productData]);
+
+  const mutation = useMutation({
+    mutationFn: async (product: Partial<Product>) => {
+      if (isEditing) {
+        return api.put(`/products/${id}`, product);
+      } else {
+        return api.post('/products', product);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      navigate('/products');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.message || 'Failed to save product');
+    }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -27,10 +63,13 @@ export const ProductFormPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitting:', formData);
-    // Real API call will go here later
-    navigate('/products');
+    setError('');
+    mutation.mutate(formData);
   };
+
+  if (isEditing && isLoadingProduct) {
+    return <div className="p-8 text-center text-gray-500">Loading product details...</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -48,6 +87,11 @@ export const ProductFormPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="p-3 text-sm text-red-700 bg-red-50 rounded-md border border-red-200">
+              {error}
+            </div>
+          )}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">Product Name *</label>
             <input
@@ -55,7 +99,7 @@ export const ProductFormPage = () => {
               id="name"
               name="name"
               required
-              value={formData.name}
+              value={formData.name || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
@@ -67,7 +111,7 @@ export const ProductFormPage = () => {
               id="description"
               name="description"
               rows={4}
-              value={formData.description}
+              value={formData.description || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
@@ -83,7 +127,7 @@ export const ProductFormPage = () => {
                 min="0"
                 step="0.01"
                 required
-                value={formData.price}
+                value={formData.price || 0}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
@@ -95,7 +139,7 @@ export const ProductFormPage = () => {
                 id="category"
                 name="category"
                 required
-                value={formData.category}
+                value={formData.category || 'Apparel'}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
               >
@@ -118,7 +162,7 @@ export const ProductFormPage = () => {
               name="stock"
               min="0"
               required
-              value={formData.stock}
+              value={formData.stock || 0}
               onChange={handleChange}
               className="mt-1 block w-64 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
@@ -134,10 +178,11 @@ export const ProductFormPage = () => {
             </button>
             <button
               type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 gap-2"
+              disabled={mutation.isPending}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 gap-2 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              Save Changes
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

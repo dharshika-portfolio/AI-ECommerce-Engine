@@ -5,12 +5,15 @@ import { Dashboard } from './pages/Dashboard';
 import { ProductList } from './pages/ProductList';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { VectorSearchPage } from './pages/VectorSearchPage';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<div className="p-8 text-center">Login Page Placeholder</div>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>

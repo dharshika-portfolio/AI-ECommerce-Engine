@@ -2,6 +2,8 @@ import { faker } from '@faker-js/faker';
 import dotenv from 'dotenv';
 import { connectDB } from '../config/db';
 import { Product } from '../models/Product.model';
+import { User } from '../models/User.model';
+import bcrypt from 'bcrypt';
 
 dotenv.config();
 
@@ -23,6 +25,20 @@ async function seed() {
 
   await Product.insertMany(products, { ordered: false });
   console.log(`✅ Seeded ${SEED_COUNT} products`);
+
+  // Seed Admin User
+  await User.deleteMany({ email: 'admin@example.com' });
+  const salt = await bcrypt.genSalt(12);
+  const hashedPassword = await bcrypt.hash('admin123', salt);
+  
+  await User.create({
+    name: 'Admin User',
+    email: 'admin@example.com',
+    password: hashedPassword,
+    role: 'admin'
+  });
+  console.log(`✅ Seeded Admin User (admin@example.com / admin123)`);
+
   process.exit(0);
 }
 

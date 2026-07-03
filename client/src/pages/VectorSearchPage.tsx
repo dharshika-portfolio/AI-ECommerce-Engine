@@ -1,61 +1,49 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { SearchBar } from '../components/SearchBar';
 import { SearchResults } from '../components/SearchResults';
+import api from '../api/axiosInstance';
 
 export const VectorSearchPage = () => {
-  const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  const [timeMs, setTimeMs] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleSearch = (searchQuery: string) => {
-    setIsSearching(true);
-    setQuery(searchQuery);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setResults([
-        {
-          id: '123',
-          name: 'Winter Puffer Jacket',
-          category: 'Apparel',
-          price: 2499,
-          score: 0.94,
-          description: 'Warm winter jacket',
-          stock: 342,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: '456',
-          name: 'Sherpa Fleece Pullover',
-          category: 'Apparel',
-          price: 1899,
-          score: 0.88,
-          description: 'Fleece pullover',
-          stock: 120,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]);
-      setTimeMs(42);
-      setIsSearching(false);
-    }, 600);
-  };
+  const { data, isFetching, isError } = useQuery({
+    queryKey: ['search', searchQuery],
+    queryFn: async () => {
+      const response = await api.get(`/products/search?q=${encodeURIComponent(searchQuery)}`);
+      return response.data;
+    },
+    enabled: !!searchQuery,
+  });
+
+  const results = data?.data || [];
+  const cacheSource = data?.source || 'database';
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">AI Vector Search</h1>
-        <p className="mt-1 text-sm text-gray-500">Test semantic search capabilities using MongoDB Atlas Vector Search.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Test semantic search capabilities using MongoDB Atlas Vector Search.
+          {searchQuery && (
+            <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${cacheSource === 'cache' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              {cacheSource === 'cache' ? '⚡ From Cache' : '🗄️ From Database'}
+            </span>
+          )}
+        </p>
       </div>
 
-      <div className="py-8">
-        <SearchBar onSearch={handleSearch} isSearching={isSearching} />
-        <SearchResults results={results} query={query} timeMs={timeMs} />
+      {isError && (
+        <div className="max-w-2xl mx-auto mb-4 p-3 text-sm text-red-700 bg-red-50 rounded-md border border-red-200">
+          Search failed. The Vector Search index may not be set up yet, or the server is unavailable.
+        </div>
+      )}
+
+      <div className="py-4">
+        <SearchBar onSearch={setSearchQuery} isSearching={isFetching} />
+        <SearchResults results={results} query={searchQuery} />
       </div>
     </div>
   );
 };
+

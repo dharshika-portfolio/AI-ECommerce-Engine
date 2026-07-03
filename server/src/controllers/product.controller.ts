@@ -151,7 +151,6 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
           category: 1,
           stock: 1,
           score: { $meta: 'vectorSearchScore' },
-          embedding: 0,
         },
       },
     ]);
