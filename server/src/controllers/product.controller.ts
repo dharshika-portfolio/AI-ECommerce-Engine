@@ -57,7 +57,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { _id, __v, ...rest } = raw as Record<string, unknown>;
+    const { _id, __v, ...rest } = raw as unknown as Record<string, unknown>;
     const product = { id: _id, ...rest };
 
     const result = { source: 'database', data: product };
@@ -165,13 +165,13 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
         ],
       }));
 
-      rawResults = await Product.find({
+      rawResults = (await Product.find({
         isActive: true,
         $and: regexConditions,
       })
         .select('-embedding')
         .limit(10)
-        .lean();
+        .lean()) as unknown as Record<string, unknown>[];
 
       // If no exact multi-word match, fall back to OR search
       if (rawResults.length === 0) {
@@ -180,10 +180,10 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
           { description: { $regex: term, $options: 'i' } },
           { category: { $regex: term, $options: 'i' } },
         ]);
-        rawResults = await Product.find({ isActive: true, $or: orConditions })
+        rawResults = (await Product.find({ isActive: true, $or: orConditions })
           .select('-embedding')
           .limit(10)
-          .lean();
+          .lean()) as unknown as Record<string, unknown>[];
       }
     } else {
       // In production: use MongoDB Atlas Vector Search with OpenAI embeddings
