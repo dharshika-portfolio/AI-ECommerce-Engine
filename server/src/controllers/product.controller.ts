@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Product, IProduct } from '../models/Product.model';
+import { Product } from '../models/Product.model';
 import { getCached, setCache, invalidateCache } from '../services/cache.service';
 import { generateEmbedding } from '../services/vector.service';
 
@@ -9,7 +9,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const limit = parseInt(req.query.limit as string) || 20;
     
     const cacheKey = `products:all:page:${page}:limit:${limit}`;
-    const cached = await getCached<any>(cacheKey);
+    const cached = await getCached<unknown>(cacheKey);
     
     if (cached) {
       res.json(cached);
@@ -26,6 +26,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       .lean();
 
     // Map _id to id since .lean() skips Mongoose toJSON transform
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const products = rawProducts.map(({ _id, __v, ...rest }) => ({ id: _id, ...rest }));
 
     const result = { source: 'database', data: products, totalPages, page };
@@ -43,7 +44,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const { id } = req.params;
     const cacheKey = `products:${id}`;
 
-    const cached = await getCached<any>(cacheKey);
+    const cached = await getCached<unknown>(cacheKey);
     if (cached) {
       res.json(cached);
       return;
@@ -55,7 +56,8 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const { _id, __v, ...rest } = raw;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _id, __v, ...rest } = raw as Record<string, unknown>;
     const product = { id: _id, ...rest };
 
     const result = { source: 'database', data: product };
@@ -137,14 +139,14 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
 
     // Build cache key from base64-encoded query
     const cacheKey = `search:${Buffer.from(query).toString('base64')}`;
-    const cached = await getCached<any>(cacheKey);
+    const cached = await getCached<unknown>(cacheKey);
 
     if (cached) {
       res.json(cached);
       return;
     }
 
-    let rawResults: any[];
+    let rawResults: Record<string, unknown>[];
 
     if (process.env.NODE_ENV === 'development') {
       // In development: use MongoDB regex search across name, description and category.
@@ -210,7 +212,8 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
     }
 
     // Map _id to id for frontend compatibility
-    const results = rawResults.map(({ _id, __v, ...rest }) => ({ id: _id, ...rest }));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const results = rawResults.map(({ _id, __v, ...rest }: Record<string, unknown>) => ({ id: _id, ...rest }));
 
     // Cache search results with 120s TTL
     const response = { source: 'database', data: results };
