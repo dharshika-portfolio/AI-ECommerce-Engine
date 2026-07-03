@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProductTable } from '../components/ProductTable';
 import { Pagination } from '../components/Pagination';
 import { Plus } from 'lucide-react';
-import { Product } from '../types';
+import type { Product } from '../types';
 
 export const ProductList = () => {
   const [currentPage, setCurrentPage] = useState(1);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Product } from '../types';
+import type { Product } from '../types';
 import { Package } from 'lucide-react';
 
 interface SearchResultItem extends Product {

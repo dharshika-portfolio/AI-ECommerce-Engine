@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { StatCard } from '../components/StatCard';
 import { Package, Activity, ShoppingCart } from 'lucide-react';
 

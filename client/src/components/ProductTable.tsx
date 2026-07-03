@@ -1,7 +1,7 @@
 import React from 'react';
 import { CacheBadge } from './CacheBadge';
 import { Edit, Trash2 } from 'lucide-react';
-import { Product } from '../types';
+import type { Product } from '../types';
 
 interface ProductTableProps {
   products: Product[];

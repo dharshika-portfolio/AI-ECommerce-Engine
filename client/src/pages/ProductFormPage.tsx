@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
-import { Product } from '../types';
+import type { Product } from '../types';
 
 export const ProductFormPage = () => {
   const { id } = useParams();
