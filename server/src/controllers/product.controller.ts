@@ -17,6 +17,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     }
 
     const products = await Product.find({ isActive: true })
+      .select('-embedding')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
@@ -41,7 +42,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const product = await Product.findById(id).lean();
+    const product = await Product.findById(id).select('-embedding').lean();
     if (!product) {
       res.status(404).json({ message: 'Product not found' });
       return;
