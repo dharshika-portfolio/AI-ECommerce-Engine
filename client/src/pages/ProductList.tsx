@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProductTable } from '../components/ProductTable';
 import { Pagination } from '../components/Pagination';
 import { Plus } from 'lucide-react';
@@ -34,8 +35,10 @@ export const ProductList = () => {
     }
   ];
 
+  const navigate = useNavigate();
+
   const handleEdit = (product: Product) => {
-    console.log('Edit', product);
+    navigate(`/products/${product.id}/edit`);
   };
 
   const handleDelete = (product: Product) => {
@@ -49,7 +52,10 @@ export const ProductList = () => {
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="mt-1 text-sm text-gray-500">Manage your store's inventory and view cache status.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors">
+        <button 
+          onClick={() => navigate('/products/new')}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Add Product
         </button>
