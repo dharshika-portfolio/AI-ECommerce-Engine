@@ -1,49 +1,48 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProductTable } from '../components/ProductTable';
 import { Pagination } from '../components/Pagination';
 import { Plus } from 'lucide-react';
 import type { Product } from '../types';
+import api from '../api/axiosInstance';
 
 export const ProductList = () => {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = 10; // Placeholder
-
-  // Placeholder data
-  const mockProducts: Product[] = [
-    {
-      id: '1234567890abcdef',
-      name: 'Winter Puffer Jacket',
-      description: 'Warm winter jacket',
-      price: 2499,
-      category: 'Apparel',
-      stock: 342,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'abcdef1234567890',
-      name: 'Running Shoes',
-      description: 'Lightweight shoes',
-      price: 3999,
-      category: 'Footwear',
-      stock: 89,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ];
-
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['products', currentPage],
+    queryFn: async () => {
+      const response = await api.get(`/products?page=${currentPage}&limit=20`);
+      return response.data;
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/products/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    }
+  });
 
   const handleEdit = (product: Product) => {
     navigate(`/products/${product.id}/edit`);
   };
 
   const handleDelete = (product: Product) => {
-    console.log('Delete', product);
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      deleteMutation.mutate(product.id);
+    }
   };
+
+  const products = data?.data || [];
+  // Assuming the API would ideally return totalPages, for now we can mock totalPages if not present
+  const totalPages = data?.totalPages || 10;
+  const cacheSource = data?.source === 'cache' ? 'cache' : 'database';
 
   return (
     <div>
@@ -80,12 +79,18 @@ export const ProductList = () => {
           </div>
         </div>
 
-        <ProductTable 
-          products={mockProducts} 
-          cacheSource="cache" 
-          onEdit={handleEdit} 
-          onDelete={handleDelete} 
-        />
+        {isLoading ? (
+          <div className="p-8 text-center text-gray-500">Loading products...</div>
+        ) : isError ? (
+          <div className="p-8 text-center text-red-500">Failed to load products.</div>
+        ) : (
+          <ProductTable 
+            products={products} 
+            cacheSource={cacheSource} 
+            onEdit={handleEdit} 
+            onDelete={handleDelete} 
+          />
+        )}
         
         <Pagination 
           currentPage={currentPage} 
