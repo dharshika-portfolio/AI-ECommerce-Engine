@@ -7,8 +7,19 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string;
+    const category = req.query.category as string;
     
-    const cacheKey = `products:all:page:${page}:limit:${limit}`;
+    // Build query
+    const query: Record<string, unknown> = { isActive: true };
+    if (category && category !== 'All Categories') {
+      query.category = category;
+    }
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+    
+    const cacheKey = `products:all:page:${page}:limit:${limit}:search:${search || ''}:cat:${category || ''}`;
     const cached = await getCached<unknown>(cacheKey);
     
     if (cached) {
@@ -16,10 +27,10 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const totalCount = await Product.countDocuments({ isActive: true });
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalCount = await Product.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limit) || 1;
 
-    const rawProducts = await Product.find({ isActive: true })
+    const rawProducts = await Product.find(query)
       .select('-embedding')
       .skip((page - 1) * limit)
       .limit(limit)

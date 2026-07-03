@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProductTable } from '../components/ProductTable';
@@ -9,13 +9,31 @@ import api from '../api/axiosInstance';
 
 export const ProductList = () => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('All Categories');
+  
+  // Basic debouncing for search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, category]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['products', currentPage],
+    queryKey: ['products', currentPage, debouncedSearch, category],
     queryFn: async () => {
-      const response = await api.get(`/products?page=${currentPage}&limit=20`);
+      const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
+      const categoryParam = category !== 'All Categories' ? `&category=${encodeURIComponent(category)}` : '';
+      const response = await api.get(`/products?page=${currentPage}&limit=20${searchParam}${categoryParam}`);
       return response.data;
     }
   });
@@ -40,7 +58,7 @@ export const ProductList = () => {
   };
 
   const products = data?.data || [];
-  const totalPages = data?.totalPages || 1;  // Use real totalPages from API
+  const totalPages = data?.totalPages || 1;
   const cacheSource = data?.source === 'cache' ? 'cache' : 'database';
 
   return (
@@ -60,20 +78,28 @@ export const ProductList = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <div className="relative w-64">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 gap-4 flex-wrap">
+          <div className="relative w-full sm:w-64">
             <input 
               type="text" 
               placeholder="Search products..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <div>
-            <select className="border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <select 
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
               <option>All Categories</option>
               <option>Apparel</option>
               <option>Footwear</option>
               <option>Electronics</option>
+              <option>Home</option>
+              <option>Sports</option>
             </select>
           </div>
         </div>
