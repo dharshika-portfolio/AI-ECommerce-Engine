@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ProductList } from './pages/ProductList';
 import { ProductFormPage } from './pages/ProductFormPage';
+import { VectorSearchPage } from './pages/VectorSearchPage';
 
 function App() {
   return (
@@ -18,7 +19,7 @@ function App() {
             <Route path="/products" element={<ProductList />} />
             <Route path="/products/new" element={<ProductFormPage />} />
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
-            <Route path="/search" element={<div className="p-4"><h1 className="text-2xl font-bold text-gray-900">Vector Search</h1><p className="mt-2 text-gray-600">Placeholder</p></div>} />
+            <Route path="/search" element={<VectorSearchPage />} />
             <Route path="/orders" element={<div className="p-4"><h1 className="text-2xl font-bold text-gray-900">Orders</h1><p className="mt-2 text-gray-600">Placeholder</p></div>} />
           </Route>
         </Route>
