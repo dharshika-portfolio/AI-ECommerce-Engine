@@ -61,9 +61,9 @@ AI-ECommerce-Engine/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+## Prerequisites
 
-- Node.js 22 LTS
+- Node.js 22+
 - Docker Desktop
 - MongoDB Atlas account (M10+ for Vector Search)
 
