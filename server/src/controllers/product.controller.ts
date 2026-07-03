@@ -119,9 +119,12 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
- * Semantic search using MongoDB Atlas Vector Search.
- * Generates an embedding from the user query, runs $vectorSearch,
- * and returns the top 10 results ranked by cosine similarity.
+ * Semantic search using MongoDB Atlas Vector Search (production) or
+ * MongoDB full-text search (development).
+ *
+ * In production, generates an OpenAI embedding and runs $vectorSearch.
+ * In development, runs a $text search for accurate keyword-matched results
+ * without requiring an OpenAI API key or Atlas Vector Search index.
  */
 export const searchProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -141,34 +144,73 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Generate embedding vector from user query
-    const embedding = await generateEmbedding(query);
+    let rawResults: any[];
 
-    // Run $vectorSearch aggregation pipeline
-    const rawResults = await Product.aggregate([
-      {
-        $vectorSearch: {
-          index: 'product_vector_index',
-          path: 'embedding',
-          queryVector: embedding,
-          numCandidates: 100,
-          limit: 10,
+    if (process.env.NODE_ENV === 'development') {
+      // In development: use MongoDB regex search across name, description and category.
+      // This gives genuine keyword-relevant results without requiring OpenAI or a Vector index.
+      const terms = query
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // escape regex special chars
+
+      const regexConditions = terms.map(term => ({
+        $or: [
+          { name: { $regex: term, $options: 'i' } },
+          { description: { $regex: term, $options: 'i' } },
+          { category: { $regex: term, $options: 'i' } },
+        ],
+      }));
+
+      rawResults = await Product.find({
+        isActive: true,
+        $and: regexConditions,
+      })
+        .select('-embedding')
+        .limit(10)
+        .lean();
+
+      // If no exact multi-word match, fall back to OR search
+      if (rawResults.length === 0) {
+        const orConditions = terms.flatMap(term => [
+          { name: { $regex: term, $options: 'i' } },
+          { description: { $regex: term, $options: 'i' } },
+          { category: { $regex: term, $options: 'i' } },
+        ]);
+        rawResults = await Product.find({ isActive: true, $or: orConditions })
+          .select('-embedding')
+          .limit(10)
+          .lean();
+      }
+    } else {
+      // In production: use MongoDB Atlas Vector Search with OpenAI embeddings
+      const embedding = await generateEmbedding(query);
+      rawResults = await Product.aggregate([
+        {
+          $vectorSearch: {
+            index: 'product_vector_index',
+            path: 'embedding',
+            queryVector: embedding,
+            numCandidates: 100,
+            limit: 10,
+          },
         },
-      },
-      {
-        $project: {
-          name: 1,
-          description: 1,
-          price: 1,
-          category: 1,
-          stock: 1,
-          score: { $meta: 'vectorSearchScore' },
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            price: 1,
+            category: 1,
+            stock: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
         },
-      },
-    ]);
+      ]);
+    }
 
     // Map _id to id for frontend compatibility
-    const results = rawResults.map(({ _id, ...rest }) => ({ id: _id, ...rest }));
+    const results = rawResults.map(({ _id, __v, ...rest }) => ({ id: _id, ...rest }));
 
     // Cache search results with 120s TTL
     const response = { source: 'database', data: results };
