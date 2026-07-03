@@ -5,9 +5,11 @@
 
 ---
 
+
 ## 🏗️ Architecture Overview
 
 ```
+
 ┌──────────────────────────────────────────────────────┐
 │                    React 19 Client                    │
 │          (Vite + Tailwind CSS v4 + React Query)       │
