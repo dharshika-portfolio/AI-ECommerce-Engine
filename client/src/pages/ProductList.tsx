@@ -40,8 +40,7 @@ export const ProductList = () => {
   };
 
   const products = data?.data || [];
-  // Assuming the API would ideally return totalPages, for now we can mock totalPages if not present
-  const totalPages = data?.totalPages || 10;
+  const totalPages = data?.totalPages || 1;  // Use real totalPages from API
   const cacheSource = data?.source === 'cache' ? 'cache' : 'database';
 
   return (
