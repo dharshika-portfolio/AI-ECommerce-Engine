@@ -9,21 +9,29 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const limit = parseInt(req.query.limit as string) || 20;
     
     const cacheKey = `products:all:page:${page}:limit:${limit}`;
-    const cached = await getCached<IProduct[]>(cacheKey);
+    const cached = await getCached<any>(cacheKey);
     
     if (cached) {
-      res.json({ source: 'cache', data: cached });
+      res.json(cached);
       return;
     }
 
-    const products = await Product.find({ isActive: true })
+    const totalCount = await Product.countDocuments({ isActive: true });
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const rawProducts = await Product.find({ isActive: true })
+      .select('-embedding')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
-    await setCache(cacheKey, products, 300);
+    // Map _id to id since .lean() skips Mongoose toJSON transform
+    const products = rawProducts.map(({ _id, __v, ...rest }) => ({ id: _id, ...rest }));
 
-    res.json({ source: 'database', data: products });
+    const result = { source: 'database', data: products, totalPages, page };
+    await setCache(cacheKey, result, 300);
+
+    res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ message: 'Server error', error: message });
@@ -35,20 +43,24 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const { id } = req.params;
     const cacheKey = `products:${id}`;
 
-    const cached = await getCached<IProduct>(cacheKey);
+    const cached = await getCached<any>(cacheKey);
     if (cached) {
-      res.json({ source: 'cache', data: cached });
+      res.json(cached);
       return;
     }
 
-    const product = await Product.findById(id).lean();
-    if (!product) {
+    const raw = await Product.findById(id).select('-embedding').lean();
+    if (!raw) {
       res.status(404).json({ message: 'Product not found' });
       return;
     }
 
-    await setCache(cacheKey, product, 300);
-    res.json({ source: 'database', data: product });
+    const { _id, __v, ...rest } = raw;
+    const product = { id: _id, ...rest };
+
+    const result = { source: 'database', data: product };
+    await setCache(cacheKey, result, 300);
+    res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ message: 'Server error', error: message });
@@ -107,9 +119,12 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
- * Semantic search using MongoDB Atlas Vector Search.
- * Generates an embedding from the user query, runs $vectorSearch,
- * and returns the top 10 results ranked by cosine similarity.
+ * Semantic search using MongoDB Atlas Vector Search (production) or
+ * MongoDB full-text search (development).
+ *
+ * In production, generates an OpenAI embedding and runs $vectorSearch.
+ * In development, runs a $text search for accurate keyword-matched results
+ * without requiring an OpenAI API key or Atlas Vector Search index.
  */
 export const searchProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -122,43 +137,86 @@ export const searchProducts = async (req: Request, res: Response): Promise<void>
 
     // Build cache key from base64-encoded query
     const cacheKey = `search:${Buffer.from(query).toString('base64')}`;
-    const cached = await getCached<IProduct[]>(cacheKey);
+    const cached = await getCached<any>(cacheKey);
 
     if (cached) {
-      res.json({ source: 'cache', data: cached });
+      res.json(cached);
       return;
     }
 
-    // Generate embedding vector from user query
-    const embedding = await generateEmbedding(query);
+    let rawResults: any[];
 
-    // Run $vectorSearch aggregation pipeline
-    const results = await Product.aggregate([
-      {
-        $vectorSearch: {
-          index: 'product_vector_index',
-          path: 'embedding',
-          queryVector: embedding,
-          numCandidates: 100,
-          limit: 10,
+    if (process.env.NODE_ENV === 'development') {
+      // In development: use MongoDB regex search across name, description and category.
+      // This gives genuine keyword-relevant results without requiring OpenAI or a Vector index.
+      const terms = query
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // escape regex special chars
+
+      const regexConditions = terms.map(term => ({
+        $or: [
+          { name: { $regex: term, $options: 'i' } },
+          { description: { $regex: term, $options: 'i' } },
+          { category: { $regex: term, $options: 'i' } },
+        ],
+      }));
+
+      rawResults = await Product.find({
+        isActive: true,
+        $and: regexConditions,
+      })
+        .select('-embedding')
+        .limit(10)
+        .lean();
+
+      // If no exact multi-word match, fall back to OR search
+      if (rawResults.length === 0) {
+        const orConditions = terms.flatMap(term => [
+          { name: { $regex: term, $options: 'i' } },
+          { description: { $regex: term, $options: 'i' } },
+          { category: { $regex: term, $options: 'i' } },
+        ]);
+        rawResults = await Product.find({ isActive: true, $or: orConditions })
+          .select('-embedding')
+          .limit(10)
+          .lean();
+      }
+    } else {
+      // In production: use MongoDB Atlas Vector Search with OpenAI embeddings
+      const embedding = await generateEmbedding(query);
+      rawResults = await Product.aggregate([
+        {
+          $vectorSearch: {
+            index: 'product_vector_index',
+            path: 'embedding',
+            queryVector: embedding,
+            numCandidates: 100,
+            limit: 10,
+          },
         },
-      },
-      {
-        $project: {
-          name: 1,
-          description: 1,
-          price: 1,
-          category: 1,
-          stock: 1,
-          score: { $meta: 'vectorSearchScore' },
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            price: 1,
+            category: 1,
+            stock: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
         },
-      },
-    ]);
+      ]);
+    }
+
+    // Map _id to id for frontend compatibility
+    const results = rawResults.map(({ _id, __v, ...rest }) => ({ id: _id, ...rest }));
 
     // Cache search results with 120s TTL
-    await setCache(cacheKey, results, 120);
+    const response = { source: 'database', data: results };
+    await setCache(cacheKey, response, 120);
 
-    res.json({ source: 'database', data: results });
+    res.json(response);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ message: 'Server error', error: message });
