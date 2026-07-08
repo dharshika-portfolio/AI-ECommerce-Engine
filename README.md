@@ -176,4 +176,4 @@ All project specification documents are in the `/docs` folder:
 - Passwords are hashed with bcrypt (cost factor 12) — never returned in API responses
 - JWT secret is stored in `.env` — never hardcoded
 - `.env` is in `.gitignore` — only `.env.example` is committed
-- CORS configured with explicit origin — no wildcard `*` in production
+- CORS configured with explicit origin — no wildcard `*` in production.
